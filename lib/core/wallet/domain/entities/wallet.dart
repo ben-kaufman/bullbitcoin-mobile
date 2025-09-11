@@ -11,6 +11,7 @@ enum Network {
     isLiquid: false,
     isMainnet: true,
     isTestnet: false,
+    isArk: false,
   ),
   bitcoinTestnet(
     coinType: 1,
@@ -18,6 +19,7 @@ enum Network {
     isLiquid: false,
     isMainnet: false,
     isTestnet: true,
+    isArk: false,
   ),
   liquidMainnet(
     coinType: 1776,
@@ -25,6 +27,7 @@ enum Network {
     isLiquid: true,
     isMainnet: true,
     isTestnet: false,
+    isArk: false,
   ),
   liquidTestnet(
     coinType: 1,
@@ -32,6 +35,15 @@ enum Network {
     isLiquid: true,
     isMainnet: false,
     isTestnet: true,
+    isArk: false,
+  ),
+  arkMainnet(
+    coinType: 1,
+    isBitcoin: false,
+    isLiquid: false,
+    isMainnet: true,
+    isTestnet: false,
+    isArk: true,
   );
 
   final int coinType;
@@ -39,6 +51,7 @@ enum Network {
   final bool isLiquid;
   final bool isMainnet;
   final bool isTestnet;
+  final bool isArk;
 
   const Network({
     required this.coinType,
@@ -46,6 +59,7 @@ enum Network {
     required this.isLiquid,
     required this.isMainnet,
     required this.isTestnet,
+    required this.isArk,
   });
 
   factory Network.fromName(String name) {
@@ -136,6 +150,7 @@ abstract class Wallet with _$Wallet {
       Network.bitcoinMainnet || Network.bitcoinTestnet => 'Bitcoin network',
       Network.liquidMainnet ||
       Network.liquidTestnet => 'Liquid and Lightning network',
+      Network.arkMainnet => 'Ark',
     };
     if (isWatchOnly) name = 'Watch-Only';
     if (isWatchSigner) name = 'Watch-Signer';
@@ -148,6 +163,7 @@ abstract class Wallet with _$Wallet {
       Network.bitcoinTestnet => 'Bitcoin Testnet',
       Network.liquidMainnet => 'Liquid Network',
       Network.liquidTestnet => 'Liquid Testnet',
+      Network.arkMainnet => 'Ark Network',
     };
   }
 
@@ -157,6 +173,7 @@ abstract class Wallet with _$Wallet {
     return switch (network) {
       Network.bitcoinMainnet || Network.bitcoinTestnet => 'Secure Bitcoin',
       Network.liquidMainnet || Network.liquidTestnet => 'Instant payments',
+      Network.arkMainnet => 'Ark',
     };
   }
 

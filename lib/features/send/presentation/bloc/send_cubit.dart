@@ -594,7 +594,10 @@ class SendCubit extends Cubit<SendState> {
 
     final walletNetwork = state.selectedWallet!.network;
     switch (walletNetwork) {
-      case Network.bitcoinMainnet:
+      case Network.bitcoinMainnet ||
+          Network.liquidMainnet ||
+          Network.arkMainnet:
+      // do nothing
       case Network.bitcoinTestnet:
         if (state.paymentRequest?.isBolt11 == true ||
             state.paymentRequest?.isLnAddress == true) {
@@ -612,7 +615,6 @@ class SendCubit extends Cubit<SendState> {
             ),
           );
         }
-      case Network.liquidMainnet:
       case Network.liquidTestnet:
         if (state.paymentRequest?.isBolt11 == true ||
             state.paymentRequest?.isLnAddress == true) {
