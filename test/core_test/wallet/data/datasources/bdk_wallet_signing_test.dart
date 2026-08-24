@@ -807,6 +807,27 @@ void main() {
       expect(verified.transaction, transaction);
       expect(verified.txSize, greaterThan(0));
 
+      final changedVersion = hex.decode(transaction);
+      changedVersion[0] ^= 0x01;
+      final substitutedInput = hex.decode(transaction);
+      // version (4), SegWit marker/flag (2), input count (1), then prevout.
+      substitutedInput[7] ^= 0x01;
+      final changedLocktime = hex.decode(transaction);
+      changedLocktime[changedLocktime.length - 1] ^= 0x01;
+      for (final changedTransaction in [
+        changedVersion,
+        substitutedInput,
+        changedLocktime,
+      ]) {
+        expect(
+          () => datasource.verifyFinalTransaction(
+            psbtBase64: unsignedPsbt,
+            transactionHex: hex.encode(changedTransaction),
+          ),
+          throwsFormatException,
+        );
+      }
+
       final differentPsbt = buildUnsignedPsbt(
         descriptor: twoPathDescriptor(
           externalPublicDescriptor,
