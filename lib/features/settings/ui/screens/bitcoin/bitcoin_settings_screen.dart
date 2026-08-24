@@ -49,6 +49,12 @@ class BitcoinSettingsScreen extends StatelessWidget {
                   ),
                 ),
                 SettingsEntryItem(
+                  icon: Icons.key,
+                  title: context.loc.signingKeyExportTitle,
+                  onTap: () =>
+                      context.pushNamed(SettingsRoute.signingKeyExport.name),
+                ),
+                SettingsEntryItem(
                   icon: Icons.satellite_alt,
                   title: context.loc.bitcoinSettingsBroadcastTransactionTitle,
                   onTap: () => context.pushNamed(

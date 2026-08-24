@@ -1,12 +1,15 @@
 import 'package:bb_mobile/core/themes/app_theme.dart';
 import 'package:bb_mobile/core/utils/build_context_x.dart';
-import 'package:bb_mobile/core/utils/logger.dart' show log;
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/widgets/text/text.dart';
+import 'package:bb_mobile/features/settings/presentation/bloc/wallet_details_cubit.dart';
+import 'package:bb_mobile/features/settings/ui/widgets/wallet_detail_fields.dart';
+import 'package:bb_mobile/features/settings/ui/widgets/wallet_descriptor_details_bottom_sheet.dart';
+import 'package:bb_mobile/features/settings/ui/widgets/wallet_policy_details_bottom_sheet.dart';
+import 'package:bb_mobile/features/settings/ui/widgets/wallet_signer_details.dart';
 import 'package:bb_mobile/features/settings/ui/widgets/wallet_deletion_confirmation_sheet.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bull_ui/bull_ui.dart' show BullIcon, BullIcons, Gap;
 
@@ -67,141 +70,159 @@ class WalletDetailsScreen extends StatelessWidget {
                   horizontal: 20,
                   vertical: 24,
                 ),
-                children: [
-                  _InfoField(
-                    label: context.loc.walletDetailsWalletFingerprintLabel,
-                    value: wallet.masterFingerprint,
-                  ),
-                  const SizedBox(height: 18),
-                  _CopyField(
-                    label: context.loc.walletDetailsPubkeyLabel,
-                    value: wallet.xpub,
-                    copyLabel: context.loc.walletDetailsCopyButton,
-                  ),
-                  const SizedBox(height: 18),
-                  _CopyField(
-                    label: context.loc.walletDetailsDescriptorLabel,
-                    value: wallet.publicDescriptor,
-                    copyLabel: context.loc.walletDetailsCopyButton,
-                  ),
-                  const SizedBox(height: 18),
-                  _InfoField(
-                    label: context.loc.walletDetailsAddressTypeLabel,
-                    value: wallet.addressType,
-                  ),
-                  const SizedBox(height: 18),
-                  _InfoField(
-                    label: context.loc.walletDetailsNetworkLabel,
-                    value: wallet.networkString,
-                  ),
-                  const SizedBox(height: 18),
-                  _InfoField(
-                    label: context.loc.walletDetailsDerivationPathLabel,
-                    value: wallet.derivationPath,
-                  ),
-                  const SizedBox(height: 18),
-                  _InfoField(
-                    label: context.loc.walletDetailsSignerLabel,
-                    value: wallet.signer.displayName,
-                  ),
-                  const SizedBox(height: 18),
-                  _InfoField(
-                    label: context.loc.walletDetailsSignerDeviceLabel,
-                    value:
-                        wallet.signerDevice?.displayName ??
-                        context.loc.walletDetailsSignerDeviceNotSupported,
-                  ),
-                ],
+                children: _usesDescriptorDetails(wallet)
+                    ? [_DescriptorWalletDetails(wallet: wallet)]
+                    : [_SingleSignerWalletDetails(wallet: wallet)],
               ),
       ),
     );
   }
 }
 
-class _InfoField extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InfoField({required this.label, required this.value});
+bool _usesDescriptorDetails(Wallet wallet) =>
+    wallet.scriptType == null || wallet.signers.length != 1;
+
+class _SingleSignerWalletDetails extends StatelessWidget {
+  final Wallet wallet;
+
+  const _SingleSignerWalletDetails({required this.wallet});
 
   @override
   Widget build(BuildContext context) {
+    final key = wallet.singleDescriptorKey!;
     return Column(
-      crossAxisAlignment: .start,
+      crossAxisAlignment: .stretch,
       children: [
-        BBText(
-          label,
-          style: context.font.bodyLarge?.copyWith(
-            color: context.appColors.textMuted,
+        if (key.masterFingerprint.isNotEmpty) ...[
+          WalletDetailInfoField(
+            label: context.loc.walletDetailsWalletFingerprintLabel,
+            value: key.masterFingerprint,
           ),
-        ),
-        const Gap(4),
-        BBText(
-          value,
-          style: context.font.bodyMedium?.copyWith(
-            color: context.appColors.onSurface,
+          const Gap(18),
+        ],
+        if (key.xpub.isNotEmpty) ...[
+          WalletDetailCopyField(
+            label: context.loc.walletDetailsPubkeyLabel,
+            value: key.xpub,
+            copyLabel: context.loc.walletDetailsCopyButton,
           ),
+          const Gap(18),
+        ],
+        WalletDetailCopyField(
+          label: context.loc.walletDetailsDescriptorLabel,
+          value: wallet.publicDescriptor,
+          copyLabel: context.loc.walletDetailsCopyButton,
         ),
+        const Gap(18),
+        WalletDetailInfoField(
+          label: context.loc.walletDetailsAddressTypeLabel,
+          value: wallet.addressType,
+        ),
+        const Gap(18),
+        WalletDetailInfoField(
+          label: context.loc.walletDetailsNetworkLabel,
+          value: wallet.networkString,
+        ),
+        const Gap(18),
+        WalletDetailInfoField(
+          label: context.loc.walletDetailsDerivationPathLabel,
+          value: key.derivationPath ?? wallet.derivationPath,
+        ),
+        const Gap(18),
+        WalletDetailInfoField(
+          label: context.loc.walletDetailsSignerLabel,
+          value: wallet.singleSigner!.signer.displayName,
+        ),
+        if (wallet.singleSigner!.signerDevice case final device?) ...[
+          const Gap(18),
+          WalletDetailInfoField(
+            label: context.loc.walletDetailsSignerDeviceLabel,
+            value: device.displayName,
+          ),
+        ],
       ],
     );
   }
 }
 
-class _CopyField extends StatelessWidget {
-  final String label;
-  final String value;
-  final String copyLabel;
-  const _CopyField({
-    required this.label,
-    required this.value,
-    required this.copyLabel,
-  });
+class _DescriptorWalletDetails extends StatelessWidget {
+  final Wallet wallet;
+
+  const _DescriptorWalletDetails({required this.wallet});
 
   @override
   Widget build(BuildContext context) {
+    final policyState = context.watch<WalletDetailsCubit>().state;
     return Column(
-      crossAxisAlignment: .start,
+      crossAxisAlignment: .stretch,
       children: [
-        BBText(
-          label,
-          style: context.font.bodyLarge?.copyWith(
-            color: context.appColors.textMuted,
+        if (wallet.isBitcoin) ...[
+          WalletDetailActionField(
+            label: context.loc.walletDetailsSpendingConditionsLabel,
+            value: policyState.isLoadingPolicy
+                ? context.loc.walletDetailsLoadingLabel
+                : policyState.failure != null
+                ? context.loc.retry
+                : policyState.policy == null
+                ? context.loc.walletDetailsUnavailableLabel
+                : context.loc.walletDetailsViewButton,
+            onTap: policyState.isLoadingPolicy
+                ? null
+                : policyState.failure != null
+                ? () => context.read<WalletDetailsCubit>().loadPolicy(wallet.id)
+                : policyState.policy != null
+                ? () => WalletPolicyDetailsBottomSheet.show(
+                    context,
+                    wallet: wallet,
+                    policy: policyState.policy!,
+                  )
+                : null,
           ),
+          const Gap(18),
+        ],
+        WalletDetailInfoField(
+          label: context.loc.walletDetailsAddressTypeLabel,
+          value: _descriptorAddressType(context, wallet),
         ),
-        const Gap(4),
-        Wrap(
-          spacing: 4,
-          runSpacing: 4,
-          children: [
-            BBText(
-              value,
-              style: context.font.bodyMedium?.copyWith(
-                color: context.appColors.onSurface,
-              ),
-            ),
-
-            InkWell(
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: value));
-                log.info('Copied $label to clipboard');
-              },
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  BBText(
-                    copyLabel,
-                    style: context.font.bodyMedium?.copyWith(
-                      color: context.appColors.primary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const Gap(4),
-                  Icon(Icons.copy, size: 16, color: context.appColors.primary),
-                ],
-              ),
-            ),
-          ],
+        const Gap(18),
+        WalletDetailInfoField(
+          label: context.loc.walletDetailsNetworkLabel,
+          value: wallet.networkString,
         ),
+        const Gap(18),
+        WalletDetailActionField(
+          label: context.loc.walletDetailsDescriptorLabel,
+          value: context.loc.walletDetailsViewButton,
+          onTap: () => WalletDescriptorDetailsBottomSheet.show(context, wallet),
+        ),
+        if (wallet.signers.isNotEmpty) ...[
+          const Gap(28),
+          WalletSignerDetails(signers: wallet.signers),
+        ],
       ],
     );
   }
+}
+
+String _descriptorAddressType(BuildContext context, Wallet wallet) {
+  final descriptor = wallet.publicDescriptor.trim().toLowerCase();
+  if (descriptor.startsWith('sh(wsh(')) {
+    return context.loc.walletDetailsNestedSegwitP2wsh;
+  }
+  if (descriptor.startsWith('sh(wpkh(')) {
+    return context.loc.walletDetailsNestedSegwitP2wpkh;
+  }
+  if (descriptor.startsWith('wsh(')) {
+    return context.loc.walletDetailsNativeSegwitP2wsh;
+  }
+  if (descriptor.startsWith('wpkh(')) {
+    return context.loc.walletDetailsNativeSegwitP2wpkh;
+  }
+  if (descriptor.startsWith('pkh(')) {
+    return context.loc.walletDetailsLegacyP2pkh;
+  }
+  if (descriptor.startsWith('sh(')) {
+    return context.loc.walletDetailsLegacyP2sh;
+  }
+  return wallet.addressType;
 }

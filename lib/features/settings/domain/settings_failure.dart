@@ -11,3 +11,11 @@ final class SettingsStorageFailure extends SettingsFailure {
 final class SettingsConsentFailure extends SettingsFailure {
   const SettingsConsentFailure([super.logMessage]);
 }
+
+final class SettingsSigningKeyExportFailure extends SettingsFailure {
+  const SettingsSigningKeyExportFailure([super.logMessage]);
+}
+
+final class SettingsWalletPolicyFailure extends SettingsFailure {
+  const SettingsWalletPolicyFailure([super.logMessage]);
+}
