@@ -111,7 +111,6 @@ graph TB
     SEND --> SWAPS
     SEND --> TX_HISTORY
     SEND --> UTXO_MGMT
-    SEND --> WALLETS
     SETTINGS --> CORE
     SETTINGS --> BULL_PAYJOIN
     STATUS --> BULL_PAYJOIN
@@ -135,6 +134,7 @@ graph TB
     WALLETS --> NETWORK
     WALLETS --> SECRETS
     WALLETS --> SETTINGS
+    WALLETS --> SEND
     WALLETS --> SWAPS
     WITHDRAWAL --> RECIPIENTS
 
@@ -145,7 +145,7 @@ graph TB
 
     class CORE coreStyle
     class PRIMITIVES,BULL_PAYJOIN,TOR packageStyle
-    class SETTINGS,PIN_CODE,LABELS,SECRETS,HW_WALLETS,BTC_PRICE,NETWORK,BIP85,FEES,WALLETS,EXCHANGE,APP_STARTUP,UTXO_MGMT,ADDRESS_MGMT,RECIPIENTS,FUNDING,BACKUPS,SWAPS,WITHDRAWAL,STATUS,SEND,RECEIVE,TRANSFER,TX_HISTORY,BG_TASKS,AUTOSWAPS,DCA,SELL,PAY,BUY,COINS,ANNOUNCEMENTS,CONSOLIDATION,ALL_SEED_VIEW,APP_UNLOCK featureStyle
+    class SETTINGS,PIN_CODE,LABELS,SECRETS,HW_WALLETS,BTC_PRICE,NETWORK,BIP85,FEES,WALLETS,EXCHANGE,APP_STARTUP,UTXO_MGMT,ADDRESS_MGMT,RECIPIENTS,FUNDING,BACKUPS,SWAPS,WITHDRAWAL,STATUS,SEND,RECEIVE,TRANSFER,TX_HISTORY,BG_TASKS,AUTOSWAPS,DCA,SELL,PAY,BUY,COINS,ANNOUNCEMENTS,CONSOLIDATION,ALL_SEED_VIEW,APP_UNLOCK,PSBT_SIGNING,PSBT_FLOW,BROADCAST_SIGNED_TX featureStyle
 ```
 
 ## About Package Dependency Diagrams
@@ -205,7 +205,7 @@ graph TB
 
 - **Core**: Foundation for all features
 - **Tor**: `packages/tor` — embedded Onion lifecycle with isolated RecoverBull and Bitcoin Electrum `.onion` sessions, plus external SOCKS verification for the explicit Electrum Orbot override. Depends on Flutter: it owns a platform plugin and app-directory storage, which is the infrastructure-package exception in AGENTS.md
-- **Wallets**: Used by Send, UTXO Management, Transaction History, Backups, App Startup
+- **Wallets**: Used by UTXO Management, Transaction History, Backups, App Startup
 - **Secrets**: Used by Wallets, BIP85
 - **Settings**: Used by Wallets, Exchange, BIP85, Bitcoin Price
 - **Recipients**: Used by Pay, Withdrawal
@@ -213,7 +213,7 @@ graph TB
 
 ### Leaf Features (Depend on Many, Few Depend on Them)
 
-- **Send**: Depends on Fees, Network, Payjoin, Swaps, UTXO Management, Wallets
+- **Send**: Depends on Fees, Network, Payjoin, Swaps, UTXO Management
 - **Receive**: Depends on Payjoin, Swaps
 - **Backups**: Depends on BIP85, Tor, Wallets
 
