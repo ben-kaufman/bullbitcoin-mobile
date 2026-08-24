@@ -15143,5 +15143,13 @@
         "type": "int"
       }
     }
+  },
+  "sendErrorSelectedCoinsInsufficient": "Selected coins don’t cover the amount and network fees.",
+  "@sendErrorSelectedCoinsInsufficient": {
+    "description": "Error shown when a manual Bitcoin coin selection is insufficient."
+  },
+  "sendErrorSelectedCoinsUnavailable": "One or more selected coins are no longer available.",
+  "@sendErrorSelectedCoinsUnavailable": {
+    "description": "Error shown when a manually selected Bitcoin coin is frozen, spent, or unavailable for the spending path."
   }
 }

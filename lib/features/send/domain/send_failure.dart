@@ -69,6 +69,14 @@ final class SendTransactionBuildFailure extends SendFailure {
   const SendTransactionBuildFailure([super.logMessage]);
 }
 
+final class SendSelectedCoinsInsufficientFailure extends SendFailure {
+  const SendSelectedCoinsInsufficientFailure([super.logMessage]);
+}
+
+final class SendSelectedCoinsUnavailableFailure extends SendFailure {
+  const SendSelectedCoinsUnavailableFailure([super.logMessage]);
+}
+
 final class SendTransactionConfirmationFailure extends SendFailure {
   final bool isBroadcastFailure;
 
@@ -80,4 +88,16 @@ final class SendTransactionConfirmationFailure extends SendFailure {
 
 final class SendUnexpectedFailure extends SendFailure {
   const SendUnexpectedFailure([super.logMessage]);
+}
+
+final class SendPersistenceFailure extends SendFailure {
+  const SendPersistenceFailure([super.logMessage]);
+}
+
+final class SendPendingTransactionChangedFailure extends SendFailure {
+  const SendPendingTransactionChangedFailure([super.logMessage]);
+}
+
+final class SendStoredTransactionInvalidFailure extends SendFailure {
+  const SendStoredTransactionInvalidFailure([super.logMessage]);
 }

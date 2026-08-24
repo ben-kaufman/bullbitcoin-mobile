@@ -33,10 +33,17 @@ extension SendFailureL10n on SendFailure {
     SendRateLimitedFailure(:final retryAfter) =>
       context.loc.swapErrorRateLimited(retryAfter?.inSeconds ?? 30),
     SendTransactionBuildFailure() => context.loc.sendErrorBuildFailed,
+    SendSelectedCoinsInsufficientFailure() =>
+      context.loc.sendErrorSelectedCoinsInsufficient,
+    SendSelectedCoinsUnavailableFailure() =>
+      context.loc.sendErrorSelectedCoinsUnavailable,
     SendTransactionConfirmationFailure(:final isBroadcastFailure) =>
       isBroadcastFailure
           ? context.loc.sendErrorBroadcastFailed
           : context.loc.sendErrorConfirmationFailed,
     SendUnexpectedFailure() => context.loc.oopsSomethingWentWrong,
+    SendPersistenceFailure() ||
+    SendPendingTransactionChangedFailure() ||
+    SendStoredTransactionInvalidFailure() => context.loc.oopsSomethingWentWrong,
   };
 }
