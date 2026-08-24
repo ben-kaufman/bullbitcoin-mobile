@@ -6,8 +6,8 @@ import 'package:bb_mobile/core/ledger/data/models/ledger_device_model.dart';
 import 'package:bb_mobile/core/ledger/domain/entities/ledger_device_entity.dart';
 import 'package:bb_mobile/core/ledger/domain/errors/ledger_errors.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
-import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/bitcoin_policy.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bull_sdk/bdk.dart' as bdk;
 import 'package:convert/convert.dart' as convert;
 import 'package:flutter/foundation.dart';
@@ -255,6 +255,16 @@ class LedgerDeviceDatasource {
     return BitcoinLedgerApp(
       connection,
     ).getXPubKey(derivationPath: derivationPath, displayPublicKey: false);
+  }
+
+  Future<String> getBitcoinAppVersion(LedgerDeviceModel device) async {
+    final connection = _getSdkConnection(device);
+    final ledgerDevice = _cachedDevice;
+    if (ledgerDevice == null) throw const LedgerError.deviceNotFound();
+    final appVersion = await BitcoinLedgerApp(
+      connection,
+    ).getVersion(ledgerDevice);
+    return appVersion.version;
   }
 
   Future<Uint8List> registerWalletPolicy(

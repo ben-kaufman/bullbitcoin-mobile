@@ -4,31 +4,60 @@ import 'package:bb_mobile/core/wallet/domain/entities/wallet_descriptor_key.dart
 import 'package:ledger_bitcoin/ledger_bitcoin.dart';
 
 abstract final class LedgerWalletPolicyAdapter {
-  static WalletPolicy fromWallet(Wallet wallet) {
+  static String? minimumBitcoinAppVersion(
+    Wallet wallet, {
+    required bool hasUnspendablePolicyKey,
+  }) {
+    if (!wallet.publicDescriptor.toLowerCase().startsWith('tr(')) return null;
+    return hasUnspendablePolicyKey ? '2.2.2' : '2.2.1';
+  }
+
+  static WalletPolicy fromWallet(
+    Wallet wallet, {
+    required List<WalletDescriptorKey> descriptorPolicyKeys,
+  }) {
     if (!wallet.supportsLedgerWalletPolicy) {
       throw const FormatException('Unsupported Ledger wallet policy');
     }
 
     var template = wallet.publicDescriptor.split('#').first;
-    final policyKeys = <String>[];
-    final seenExpressions = <String>{};
+    final ledgerPolicyKeys = <String>[];
+    final usedBranches = <int, Set<String>>{};
     for (final atom in _descriptorAtoms(template)) {
       final key = _LedgerPolicyKey.tryParse(atom, wallet: wallet);
-      if (key == null || !seenExpressions.add(key.expression)) continue;
-      if (!wallet.descriptorKeys.any(key.matches)) {
+      if (key == null) continue;
+      if (!descriptorPolicyKeys.any(key.matchesDescriptorKey)) {
         throw const FormatException('Descriptor key is missing from policy');
       }
-      final index = policyKeys.length;
-      template = template.replaceAll(key.expression, '@$index/**');
-      policyKeys.add(key.keyInfo);
+      final existingIndex = ledgerPolicyKeys.indexOf(key.keyInfo);
+      final index = existingIndex < 0 ? ledgerPolicyKeys.length : existingIndex;
+      final branches = usedBranches.putIfAbsent(index, () => <String>{});
+      final repeatsExistingRole =
+          branches.contains(key.externalBranch) &&
+          branches.contains(key.internalBranch);
+      if (repeatsExistingRole) {
+        template = template.replaceAll(key.expression, key.placeholder(index));
+        continue;
+      }
+      if (branches.contains(key.externalBranch) ||
+          branches.contains(key.internalBranch)) {
+        throw const FormatException(
+          'Repeated Ledger wallet policy keys must use disjoint branches',
+        );
+      }
+      branches
+        ..add(key.externalBranch)
+        ..add(key.internalBranch);
+      template = template.replaceAll(key.expression, key.placeholder(index));
+      if (existingIndex < 0) ledgerPolicyKeys.add(key.keyInfo);
     }
-    if (policyKeys.isEmpty ||
+    if (ledgerPolicyKeys.isEmpty ||
         template.contains('xpub') ||
         template.contains('tpub')) {
       throw const FormatException('Unmapped descriptor key in policy');
     }
 
-    return WalletPolicy(_walletName(wallet), template, policyKeys);
+    return WalletPolicy(_walletName(wallet), template, ledgerPolicyKeys);
   }
 
   static Iterable<String> _descriptorAtoms(String descriptor) sync* {
@@ -62,7 +91,7 @@ final class _LedgerPolicyKey {
   static final _pattern = RegExp(
     r"^(?:\[([0-9a-fA-F]{8})((?:/[0-9]+(?:'|h)?)*)\])?"
     r'((?:xpub|tpub)[1-9A-HJ-NP-Za-km-z]+)'
-    r'((?:/[0-9]+)*)/<0;1>/\*$',
+    r'((?:/[0-9]+)*)/<([0-9]+);([0-9]+)>/\*$',
   );
 
   final String expression;
@@ -70,6 +99,8 @@ final class _LedgerPolicyKey {
   final String? derivationPath;
   final String xpub;
   final String keyInfo;
+  final String externalBranch;
+  final String internalBranch;
 
   const _LedgerPolicyKey({
     required this.expression,
@@ -77,6 +108,8 @@ final class _LedgerPolicyKey {
     required this.derivationPath,
     required this.xpub,
     required this.keyInfo,
+    required this.externalBranch,
+    required this.internalBranch,
   });
 
   static _LedgerPolicyKey? tryParse(
@@ -106,10 +139,17 @@ final class _LedgerPolicyKey {
       derivationPath: originPath.isEmpty ? null : 'm$originPath',
       xpub: xpub,
       keyInfo: '$origin$derivedXpub',
+      externalBranch: match.group(5)!,
+      internalBranch: match.group(6)!,
     );
   }
 
-  bool matches(WalletDescriptorKey key) =>
+  String placeholder(int index) =>
+      externalBranch == '0' && internalBranch == '1'
+      ? '@$index/**'
+      : '@$index/<$externalBranch;$internalBranch>/*';
+
+  bool matchesDescriptorKey(WalletDescriptorKey key) =>
       key.masterFingerprint.toLowerCase() == masterFingerprint &&
       _normalizePath(key.derivationPath) == _normalizePath(derivationPath) &&
       key.xpub == xpub;

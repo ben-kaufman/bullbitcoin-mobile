@@ -658,6 +658,8 @@ class _LedgerActionViewState extends State<_LedgerActionView> {
         return context.loc.ledgerErrorDeviceLocked;
       case 'LEDGER_ERROR_BITCOIN_APP_NOT_OPEN':
         return context.loc.ledgerErrorBitcoinAppNotOpen;
+      case 'LEDGER_ERROR_BITCOIN_APP_UPDATE_REQUIRED':
+        return context.loc.ledgerErrorBitcoinAppUpdateRequired;
       case 'LEDGER_ERROR_WALLET_SIGNER_MISMATCH':
         return context.loc.hardwareWalletSignerMismatch;
       case 'LEDGER_ERROR_UNSUPPORTED_WALLET_POLICY':
