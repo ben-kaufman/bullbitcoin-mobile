@@ -348,6 +348,19 @@ class BdkFacade {
     }
   }
 
+  static String descriptorForPolicyAnalysis(String descriptor) =>
+      descriptor.split('#').first.replaceAllMapped(
+        RegExp(
+          r'\[([0-9a-fA-F]{8})([^\]]*)\]'
+          r'((?:xpub|tpub)[1-9A-HJ-NP-Za-km-z]+)',
+        ),
+        (match) {
+          final xpub = match.group(3)!;
+          final fingerprint = Bip32Derivation.getBip32Xpub(xpub).fingerprintHex;
+          return '[$fingerprint${match.group(2)!}]$xpub';
+        },
+      );
+
   static List<BdkDescriptorKey> _descriptorKeys(String descriptor) {
     final keys = <BdkDescriptorKey>[];
     final seen = <String>{};

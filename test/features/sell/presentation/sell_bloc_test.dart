@@ -309,7 +309,9 @@ void main() {
         psbt: any(named: 'psbt'),
         walletId: any(named: 'walletId'),
       ),
-    ).thenAnswer((_) async => (signedPsbt: unsignedPsbt, txSize: 110));
+    ).thenAnswer(
+      (_) async => (signedPsbt: unsignedPsbt, txSize: 110, isFinalized: true),
+    );
     when(
       () => broadcastBitcoin.execute(any(), isPsbt: any(named: 'isPsbt')),
     ).thenAnswer((_) async => expectedTxid);

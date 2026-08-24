@@ -254,20 +254,23 @@ abstract class Wallet with _$Wallet {
       signers.every((signer) => signer.signer == SignerEntity.none);
   bool get isWatchSigner => singleSigner?.signer == SignerEntity.remote;
   bool get signsLocally => singleSigner?.signer == SignerEntity.local;
-  bool get isStandardLocalSingleSignatureWallet {
-    final signer = singleSigner;
+  bool get isStandardSingleSignatureWallet {
     final key = singleDescriptorKey;
     final type = scriptType;
-    if (signer?.signer != SignerEntity.local || key == null || type == null) {
-      return false;
-    }
+    if (key == null || type == null) return false;
     if (!type.matchesStandardAccountPath(key.derivationPath, network)) {
       return false;
     }
     return isLiquid || descriptorUsesStandardKeychains(publicDescriptor);
   }
 
-  bool get signsRemotely => isWatchSigner;
+  bool get isStandardLocalSingleSignatureWallet {
+    final signer = singleSigner;
+    return signer?.signer == SignerEntity.local &&
+        isStandardSingleSignatureWallet;
+  }
+
+  bool get signsRemotely => hasRemoteSigner;
   bool get isHardwareWallet => signerDevice != null;
   bool get isBitcoinHardwareWallet => isBitcoin && isHardwareWallet;
   bool get hasLocalSigner =>
