@@ -216,6 +216,57 @@ abstract class Wallet with _$Wallet {
         network == Network.bitcoinTestnet;
   }
 
+  bool get hasWalletPolicyKeyOrigins =>
+      _haveWalletPolicyKeyOrigins(descriptorKeys);
+
+  bool hasWalletPolicyKeyOriginsFor(WalletSigner signer) =>
+      _haveWalletPolicyKeyOrigins(signer.descriptorKeys);
+
+  bool get supportsLedgerWalletPolicy {
+    if (!isBitcoin || descriptorKeys.isEmpty) return false;
+    final descriptor = publicDescriptor.split('#').first.toLowerCase();
+    if (descriptor.startsWith('wsh(')) return true;
+    return descriptor.startsWith('sh(wsh(sortedmulti(') ||
+        descriptor.startsWith('sh(wsh(multi(');
+  }
+
+  bool get supportsBitBoxWalletPolicy {
+    if (!isBitcoin || descriptorKeys.isEmpty) return false;
+    final descriptor = publicDescriptor.split('#').first.toLowerCase();
+    return descriptor.startsWith('wsh(') ||
+        descriptor.startsWith('sh(wsh(sortedmulti(');
+  }
+
+  bool supportsWalletPolicySigner(WalletSigner signer) {
+    final device = signer.signerDevice;
+    if (device == null || !hasWalletPolicyKeyOriginsFor(signer)) return false;
+    if (device.isLedger) return supportsLedgerWalletPolicy;
+    if (!device.isBitBox || !supportsBitBoxWalletPolicy) return false;
+
+    final descriptor = publicDescriptor.split('#').first.toLowerCase();
+    final isSortedMultisig =
+        descriptor.startsWith('wsh(sortedmulti(') ||
+        descriptor.startsWith('sh(wsh(sortedmulti(');
+    return !isSortedMultisig || signer.descriptorKeys.length == 1;
+  }
+
+  bool supportsWalletPolicyOn(SignerDeviceEntity device) => signers.any(
+    (signer) =>
+        (device.isLedger
+            ? signer.signerDevice?.isLedger == true
+            : device.isBitBox && signer.signerDevice?.isBitBox == true) &&
+        supportsWalletPolicySigner(signer),
+  );
+
+  static bool _haveWalletPolicyKeyOrigins(Iterable<WalletDescriptorKey> keys) =>
+      keys.isNotEmpty &&
+      keys.every(
+        (key) =>
+            key.masterFingerprint.length == 8 &&
+            key.xpub.isNotEmpty &&
+            key.derivationPath != null,
+      );
+
   String get derivationPath {
     // Find the content between [ and ]
     final startBracket = publicDescriptor.indexOf('[');
