@@ -313,6 +313,7 @@ void main() {
           keychain: BitcoinPolicyKeychain.external,
           originKeySources: const [],
           signedKeySources: const [],
+          tapLeafHashes: const {},
           outpoint: 'funding:0',
           sequence: 0xffffffff,
         ),

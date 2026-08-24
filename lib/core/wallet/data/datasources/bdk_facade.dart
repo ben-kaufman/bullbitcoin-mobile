@@ -6,7 +6,11 @@ import 'package:bb_mobile/core/wallet/data/models/wallet_model.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/wallet_error.dart';
 import 'package:bull_sdk/bdk.dart' as bdk;
+import 'package:convert/convert.dart';
 import 'package:path_provider/path_provider.dart';
+
+const _bip341NumsKey =
+    '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0';
 
 final class BdkDescriptorKey {
   final String masterFingerprint;
@@ -28,6 +32,8 @@ final class BdkTwoPathDescriptor {
   final String internalDescriptor;
   final ScriptType? scriptType;
   final List<BdkDescriptorKey> keys;
+  final List<BdkDescriptorKey> policyKeys;
+  final Set<String> unspendablePolicyKeyIdentifiers;
   final bool inferredChangePath;
 
   const BdkTwoPathDescriptor({
@@ -36,6 +42,8 @@ final class BdkTwoPathDescriptor {
     required this.internalDescriptor,
     required this.scriptType,
     this.keys = const [],
+    this.policyKeys = const [],
+    this.unspendablePolicyKeyIdentifiers = const {},
     this.inferredChangePath = false,
   });
 }
@@ -286,10 +294,6 @@ class BdkFacade {
     try {
       parsed.sanityCheck();
 
-      if (parsed.descType() == bdk.DescriptorType.tr) {
-        throw const UnsupportedTaprootDescriptorException();
-      }
-
       if (!parsed.isMultipath()) {
         throw const FormatException(
           'Descriptor must define receiving and change paths',
@@ -325,6 +329,10 @@ class BdkFacade {
         }
 
         final externalDescriptor = singleDescriptors.first.toString();
+        final keyAnalysis = _descriptorKeys(
+          externalDescriptor,
+          descriptorType: parsed.descType(),
+        );
         return BdkTwoPathDescriptor(
           descriptor: parsed.toString(),
           externalDescriptor: externalDescriptor,
@@ -335,7 +343,10 @@ class BdkFacade {
             bdk.DescriptorType.pkh => ScriptType.bip44,
             _ => null,
           },
-          keys: _descriptorKeys(externalDescriptor),
+          keys: keyAnalysis.signingKeys,
+          policyKeys: keyAnalysis.policyKeys,
+          unspendablePolicyKeyIdentifiers:
+              keyAnalysis.unspendablePolicyKeyIdentifiers,
           inferredChangePath: normalized.inferredChangePath,
         );
       } finally {
@@ -361,11 +372,32 @@ class BdkFacade {
         },
       );
 
-  static List<BdkDescriptorKey> _descriptorKeys(String descriptor) {
-    final keys = <BdkDescriptorKey>[];
-    final seen = <String>{};
+  static ({
+    List<BdkDescriptorKey> signingKeys,
+    List<BdkDescriptorKey> policyKeys,
+    Set<String> unspendablePolicyKeyIdentifiers,
+  })
+  _descriptorKeys(
+    String descriptor, {
+    required bdk.DescriptorType descriptorType,
+  }) {
+    final parsedKeys = <({BdkDescriptorKey key, String expression})>[];
+    final taproot = descriptorType == bdk.DescriptorType.tr
+        ? _taprootInternalKey(descriptor)
+        : null;
+    final unspendableIdentifiers = <String>{};
+    var parsedFixedNumsInternalKey = false;
 
-    for (final candidate in _descriptorAtoms(descriptor)) {
+    for (final atom in _descriptorAtoms(descriptor)) {
+      if (const {
+        'sha256',
+        'hash256',
+        'ripemd160',
+        'hash160',
+      }.contains(atom.parent?.split(':').last)) {
+        continue;
+      }
+      final candidate = atom.value;
       final bdk.DescriptorPublicKey descriptorKey;
       try {
         descriptorKey = bdk.DescriptorPublicKey.fromString(
@@ -393,6 +425,21 @@ class BdkFacade {
       );
 
       if (!xpub.startsWith('xpub') && !xpub.startsWith('tpub')) {
+        final isBip341NumsInternalKey =
+            descriptorType == bdk.DescriptorType.tr &&
+            !parsedFixedNumsInternalKey &&
+            {
+              _bip341NumsKey,
+              _bip341NumsKey.substring(2),
+            }.contains(xpub.toLowerCase()) &&
+            candidate == taproot?.expression;
+        if (isBip341NumsInternalKey) {
+          parsedFixedNumsInternalKey = true;
+          unspendableIdentifiers
+            ..add(_bip341NumsKey)
+            ..add(_bip341NumsKey.substring(2));
+          continue;
+        }
         throw const UnsupportedFixedPublicKeyDescriptorException();
       }
       final xpubFingerprint = Bip32Derivation.getBip32Xpub(xpub).fingerprintHex;
@@ -409,32 +456,156 @@ class BdkFacade {
         }
       }
 
-      final identity = '$masterFingerprint:$derivationPath:$xpub';
-      if (!seen.add(identity)) continue;
-      keys.add(
-        BdkDescriptorKey(
+      parsedKeys.add((
+        expression: candidate,
+        key: BdkDescriptorKey(
           masterFingerprint: masterFingerprint,
           xpubFingerprint: xpubFingerprint,
           xpub: xpub,
           derivationPath: derivationPath,
         ),
+      ));
+    }
+
+    final unspendableInternalKey = _unspendableTaprootInternalKey(
+      parsedKeys,
+      taprootInternalKey: taproot?.expression,
+    );
+    if (unspendableInternalKey != null) {
+      _validateUnspendableInternalKey(parsedKeys, unspendableInternalKey);
+      unspendableIdentifiers.addAll({
+        unspendableInternalKey.masterFingerprint.toLowerCase(),
+        unspendableInternalKey.xpubFingerprint.toLowerCase(),
+        unspendableInternalKey.xpub.toLowerCase(),
+      });
+    }
+    if ((parsedFixedNumsInternalKey || unspendableInternalKey != null) &&
+        taproot?.hasScriptTree != true) {
+      throw const FormatException(
+        'Unspendable Taproot internal keys require a script tree',
       );
     }
 
-    return List.unmodifiable(keys);
+    List<BdkDescriptorKey> uniqueKeys({required bool includeUnspendable}) {
+      final seen = <String>{};
+      return List.unmodifiable([
+        for (final parsed in parsedKeys)
+          if ((includeUnspendable ||
+                  !identical(parsed.key, unspendableInternalKey)) &&
+              seen.add(
+                '${parsed.key.masterFingerprint}:${parsed.key.derivationPath}:${parsed.key.xpub}',
+              ))
+            parsed.key,
+      ]);
+    }
+
+    return (
+      signingKeys: uniqueKeys(includeUnspendable: false),
+      policyKeys: uniqueKeys(includeUnspendable: true),
+      unspendablePolicyKeyIdentifiers: Set.unmodifiable(
+        unspendableIdentifiers.where((identifier) => identifier.isNotEmpty),
+      ),
+    );
   }
 
-  static Iterable<String> _descriptorAtoms(String descriptor) sync* {
+  static void _validateUnspendableInternalKey(
+    List<({BdkDescriptorKey key, String expression})> parsedKeys,
+    BdkDescriptorKey unspendableInternalKey,
+  ) {
+    final fingerprints = {
+      unspendableInternalKey.masterFingerprint.toLowerCase(),
+      unspendableInternalKey.xpubFingerprint.toLowerCase(),
+    }..remove('');
+    for (final parsed in parsedKeys) {
+      final key = parsed.key;
+      if (identical(key, unspendableInternalKey)) continue;
+      if (key.xpub == unspendableInternalKey.xpub) {
+        throw const FormatException(
+          'Unspendable Taproot internal keys cannot be used in scripts',
+        );
+      }
+      if (fingerprints.contains(key.masterFingerprint.toLowerCase()) ||
+          fingerprints.contains(key.xpubFingerprint.toLowerCase())) {
+        throw const FormatException(
+          'Unspendable Taproot internal key fingerprint is ambiguous',
+        );
+      }
+    }
+  }
+
+  static BdkDescriptorKey? _unspendableTaprootInternalKey(
+    List<({BdkDescriptorKey key, String expression})> parsedKeys, {
+    required String? taprootInternalKey,
+  }) {
+    if (taprootInternalKey == null) return null;
+    final internalIndex = parsedKeys.indexWhere(
+      (parsed) => parsed.expression == taprootInternalKey,
+    );
+    if (internalIndex < 0) return null;
+    final internal = parsedKeys[internalIndex];
+
+    final internalXpub = Bip32Derivation.getBip32Xpub(internal.key.xpub);
+    return hex.encode(internalXpub.public).toLowerCase() == _bip341NumsKey
+        ? internal.key
+        : null;
+  }
+
+  static ({String expression, bool hasScriptTree})? _taprootInternalKey(
+    String descriptor,
+  ) {
+    final withoutChecksum = descriptor.split('#').first.trim();
+    final match = RegExp(r'^tr\s*\(').firstMatch(withoutChecksum);
+    if (match == null) return null;
+    final start = match.end;
+    var nested = 0;
+    for (var index = start; index < withoutChecksum.length; index++) {
+      final character = withoutChecksum[index];
+      if (character == '(' || character == '{') nested++;
+      if (character == ')' || character == '}') {
+        if (nested == 0) {
+          return (
+            expression: withoutChecksum.substring(start, index).trim(),
+            hasScriptTree: false,
+          );
+        }
+        nested--;
+      }
+      if (character == ',' && nested == 0) {
+        return (
+          expression: withoutChecksum.substring(start, index).trim(),
+          hasScriptTree: true,
+        );
+      }
+    }
+    return null;
+  }
+
+  static Iterable<({String value, String? parent})> _descriptorAtoms(
+    String descriptor,
+  ) sync* {
     final withoutChecksum = descriptor.split('#').first;
     var start = 0;
+    final parents = <String?>[];
     for (var index = 0; index < withoutChecksum.length; index++) {
-      if (!'(),{}'.contains(withoutChecksum[index])) continue;
+      final delimiter = withoutChecksum[index];
+      if (!'(),{}'.contains(delimiter)) continue;
       final atom = withoutChecksum.substring(start, index).trim();
-      if (atom.isNotEmpty) yield atom;
+      if (atom.isNotEmpty) {
+        yield (value: atom, parent: parents.lastOrNull);
+      }
+      if (delimiter == '(') {
+        parents.add(atom.isEmpty ? null : atom);
+      } else if (delimiter == '{') {
+        parents.add(null);
+      } else if ((delimiter == ')' || delimiter == '}') && parents.isNotEmpty) {
+        parents.removeLast();
+      }
       start = index + 1;
     }
     final atom = withoutChecksum.substring(start).trim();
-    if (atom.isNotEmpty) yield atom;
+    if (atom.isNotEmpty) {
+      yield (value: atom, parent: parents.lastOrNull);
+    }
   }
 
   static ({String descriptor, bool inferredChangePath})
