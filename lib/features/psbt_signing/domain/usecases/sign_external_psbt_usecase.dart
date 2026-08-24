@@ -64,6 +64,8 @@ class SignExternalPsbtUsecase {
       return const Err(PsbtSigningMissingUtxoFailure());
     } on BitcoinPsbtUnsupportedSighashException {
       return const Err(PsbtSigningUnsupportedSighashFailure());
+    } on BitcoinPsbtUnsupportedSpendModeException {
+      return const Err(PsbtSigningUnsupportedSpendModeFailure());
     } on Exception catch (error, stackTrace) {
       log.severe(
         message: 'Failed to sign external PSBT',

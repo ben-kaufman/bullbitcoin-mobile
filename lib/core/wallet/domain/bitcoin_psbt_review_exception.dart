@@ -24,3 +24,8 @@ final class BitcoinPsbtUnsupportedSighashException
     extends BitcoinPsbtReviewException {
   const BitcoinPsbtUnsupportedSighashException();
 }
+
+final class BitcoinPsbtUnsupportedSpendModeException
+    extends BitcoinPsbtReviewException {
+  const BitcoinPsbtUnsupportedSpendModeException();
+}

@@ -1,4 +1,5 @@
 import 'package:bb_mobile/core/utils/result.dart';
+import 'package:bb_mobile/core/wallet/domain/bitcoin_psbt_review_exception.dart';
 import 'package:bb_mobile/core/wallet/domain/bitcoin_signing_port.dart';
 import 'package:bb_mobile/features/psbt_signing/domain/psbt_signing_failure.dart';
 import 'package:bb_mobile/features/psbt_signing/domain/psbt_signing_review.dart';
@@ -58,6 +59,29 @@ void main() {
         (result) => result.failure,
         'failure',
         isA<PsbtSigningNoSignatureAddedFailure>(),
+      ),
+    );
+  });
+
+  test('rejects mixed Taproot input spend modes', () async {
+    final port = _MockBitcoinSigningPort();
+    final review = psbtSigningReview(
+      policy: singleLocalPolicy(),
+      wallet: psbtSigningWallet(includeRemoteSigner: false),
+      transaction: psbtReview(),
+    );
+    when(
+      () => port.signPsbt('unsigned', walletId: 'wallet', tryFinalize: false),
+    ).thenThrow(const BitcoinPsbtUnsupportedSpendModeException());
+
+    final result = await SignExternalPsbtUsecase(port).execute(review);
+
+    expect(
+      result,
+      isA<Err<PsbtSigningResult, PsbtSigningFailure>>().having(
+        (result) => result.failure,
+        'failure',
+        isA<PsbtSigningUnsupportedSpendModeFailure>(),
       ),
     );
   });

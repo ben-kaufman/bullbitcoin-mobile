@@ -26,6 +26,7 @@ import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet_signer.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet_transaction.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet_utxo.dart';
+import 'package:bb_mobile/core/wallet/domain/unsupported_bitcoin_policy_path_exception.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallet_utxos_usecase.dart';
 import 'package:bb_mobile/core/wallet/domain/usecases/get_wallets_usecase.dart';
@@ -2452,6 +2453,15 @@ class SendCubit extends Cubit<SendState>
         emit(
           state.copyWith(
             failure: SendTransactionBuildFailure(e.message),
+            buildingTransaction: false,
+          ),
+        );
+        return;
+      }
+      if (e is UnsupportedBitcoinPolicyPathException) {
+        emit(
+          state.copyWith(
+            failure: const SendUnsupportedPolicyPathFailure(),
             buildingTransaction: false,
           ),
         );

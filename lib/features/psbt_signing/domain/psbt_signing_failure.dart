@@ -28,6 +28,10 @@ final class PsbtSigningUnsupportedSighashFailure extends PsbtSigningFailure {
   const PsbtSigningUnsupportedSighashFailure([super.logMessage]);
 }
 
+final class PsbtSigningUnsupportedSpendModeFailure extends PsbtSigningFailure {
+  const PsbtSigningUnsupportedSpendModeFailure([super.logMessage]);
+}
+
 final class PsbtSigningNoSignatureAddedFailure extends PsbtSigningFailure {
   const PsbtSigningNoSignatureAddedFailure([super.logMessage]);
 }

@@ -69,6 +69,10 @@ final class SendTransactionBuildFailure extends SendFailure {
   const SendTransactionBuildFailure([super.logMessage]);
 }
 
+final class SendUnsupportedPolicyPathFailure extends SendFailure {
+  const SendUnsupportedPolicyPathFailure([super.logMessage]);
+}
+
 final class SendSelectedCoinsInsufficientFailure extends SendFailure {
   const SendSelectedCoinsInsufficientFailure([super.logMessage]);
 }

@@ -1,8 +1,7 @@
 import 'package:bb_mobile/core/wallet/data/models/bitcoin_psbt_review_model.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_descriptor_key_model.dart';
+import 'package:bb_mobile/core/wallet/data/mappers/wallet_descriptor_key_matcher.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/bitcoin_psbt_review.dart';
-import 'package:bb_mobile/core/utils/bip32_derivation.dart';
-import 'package:bb_mobile/core/utils/uint_8_list_x.dart';
 
 class BitcoinPsbtReviewMapper {
   static BitcoinPsbtReview toEntity(
@@ -40,8 +39,18 @@ class BitcoinPsbtReviewMapper {
     required List<WalletDescriptorKeyModel> descriptorKeys,
     required Set<String> localSignerIds,
   }) {
-    final originKeyIds = _resolveKeyIds(input.originKeySources, descriptorKeys);
-    final signedKeyIds = _resolveKeyIds(input.signedKeySources, descriptorKeys);
+    final relevantOriginSources = input.originKeySources.where(
+      (source) =>
+          source.tapLeafHash == null ||
+          input.tapLeafHashes.contains(source.tapLeafHash),
+    );
+    final originKeyIds = _resolveKeyIds(relevantOriginSources, descriptorKeys);
+    final relevantSignedSources = input.signedKeySources.where(
+      (source) =>
+          source.tapLeafHash == null ||
+          input.tapLeafHashes.contains(source.tapLeafHash),
+    );
+    final signedKeyIds = _resolveKeyIds(relevantSignedSources, descriptorKeys);
     return BitcoinPsbtInputReview(
       outpoint: input.outpoint,
       amountSat: input.amountSat,
@@ -57,68 +66,18 @@ class BitcoinPsbtReviewMapper {
   }
 
   static Set<String> _resolveKeyIds(
-    List<BitcoinPsbtKeySourceRecord> sources,
+    Iterable<BitcoinPsbtKeySourceRecord> sources,
     List<WalletDescriptorKeyModel> keys,
   ) => Set.unmodifiable({
     for (final source in sources)
       for (final key in keys)
-        if (_matches(source, key)) key.id,
+        if (walletDescriptorKeyMatches(
+          key: key,
+          publicKey: source.publicKey,
+          fingerprint: source.fingerprint,
+          derivationPath: source.derivationPath,
+          isXOnly: source.isXOnly,
+        ))
+          key.id,
   });
-
-  static bool _matches(
-    BitcoinPsbtKeySourceRecord source,
-    WalletDescriptorKeyModel key,
-  ) {
-    final publicKey = source.publicKey.toLowerCase();
-    if (key.xpub.toLowerCase() == publicKey) return true;
-    if (key.xpub.isEmpty) return false;
-
-    final sourceFingerprint = source.fingerprint?.toLowerCase();
-    final masterFingerprint = key.masterFingerprint.toLowerCase();
-    final xpubFingerprint = key.xpubFingerprint.toLowerCase();
-    if (masterFingerprint.isNotEmpty &&
-        sourceFingerprint != masterFingerprint) {
-      return false;
-    }
-    if (masterFingerprint.isEmpty &&
-        xpubFingerprint.isNotEmpty &&
-        sourceFingerprint != xpubFingerprint) {
-      return false;
-    }
-
-    final sourcePath = _pathParts(source.derivationPath);
-    final accountPath = _pathParts(key.derivationPath);
-    if (accountPath.isNotEmpty && !_startsWith(sourcePath, accountPath)) {
-      return false;
-    }
-    final suffix = accountPath.isEmpty
-        ? sourcePath
-        : sourcePath.sublist(accountPath.length);
-    if (suffix.any((part) => part.endsWith("'"))) return false;
-
-    try {
-      var derived = Bip32Derivation.getBip32Xpub(key.xpub);
-      if (suffix.isNotEmpty) derived = derived.derivePath(suffix.join('/'));
-      return derived.public.toHexString().toLowerCase() == publicKey;
-    } on Exception {
-      return false;
-    }
-  }
-
-  static List<String> _pathParts(String? path) {
-    if (path == null || path.isEmpty || path == 'm') return const [];
-    return path
-        .replaceAllMapped(RegExp(r'(\d+)[hH]'), (match) => "${match[1]}'")
-        .split('/')
-        .where((part) => part.isNotEmpty && part != 'm')
-        .toList();
-  }
-
-  static bool _startsWith(List<String> path, List<String> prefix) {
-    if (path.length < prefix.length) return false;
-    for (var index = 0; index < prefix.length; index++) {
-      if (path[index] != prefix[index]) return false;
-    }
-    return true;
-  }
 }

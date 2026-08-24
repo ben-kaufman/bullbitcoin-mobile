@@ -12,8 +12,10 @@ import 'package:bb_mobile/core/wallet/data/mappers/bitcoin_psbt_review_mapper.da
 import 'package:bb_mobile/core/wallet/data/mappers/bitcoin_policy_maturity_mapper.dart';
 import 'package:bb_mobile/core/wallet/data/mappers/bitcoin_wallet_policy_mapper.dart';
 import 'package:bb_mobile/core/wallet/data/mappers/wallet_utxo_mapper.dart';
+import 'package:bb_mobile/core/wallet/data/mappers/wallet_signer_mapper.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_metadata_model.dart';
 import 'package:bb_mobile/core/wallet/data/models/wallet_model.dart';
+import 'package:bb_mobile/core/wallet/data/models/wallet_descriptor_key_model.dart';
 import 'package:bb_mobile/core/electrum/domain/value_objects/electrum_connection.dart';
 import 'package:bb_mobile/core/electrum/domain/ports/electrum_servers_port.dart';
 import 'package:bb_mobile/core/electrum/domain/value_objects/electrum_server_network.dart';
@@ -110,9 +112,43 @@ class BitcoinWalletRepository implements BitcoinSendPort, BitcoinSigningPort {
       // setExactSequence's result was discarded, wrong now that it works.
       replaceByFee: replaceByFee ?? true,
       policyPath: policyPath,
+      requiredDescriptorKeys: policyPath == null
+          ? null
+          : (
+              external: _requiredDescriptorKeys(
+                metadata,
+                policyPath.requiredExternalKeys,
+              ),
+              internal: _requiredDescriptorKeys(
+                metadata,
+                policyPath.requiredInternalKeys,
+              ),
+            ),
     );
 
     return psbt;
+  }
+
+  List<WalletDescriptorKeyModel> _requiredDescriptorKeys(
+    WalletMetadataModel metadata,
+    Set<BitcoinPolicyKey> policyKeys,
+  ) {
+    final descriptorKeys = metadata.signers
+        .expand((signer) => signer.descriptorKeys)
+        .toList();
+    final matched = <WalletDescriptorKeyModel>[];
+    for (final policyKey in policyKeys) {
+      final matches = descriptorKeys.where(
+        (key) => policyKey.matches(key.toEntity()),
+      );
+      if (matches.isEmpty) {
+        throw StateError('Selected policy key does not match the descriptor');
+      }
+      for (final match in matches) {
+        if (!matched.any((key) => key.id == match.id)) matched.add(match);
+      }
+    }
+    return matched;
   }
 
   @override
