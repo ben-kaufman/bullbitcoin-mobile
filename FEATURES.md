@@ -50,6 +50,9 @@ graph TB
     ALL_SEED_VIEW[All Seed View]
     APP_UNLOCK[App Unlock]
     AUTOSWAP[Autoswap]
+    PSBT_SIGNING[PSBT Signing]
+    PSBT_FLOW[PSBT Flow]
+    BROADCAST_SIGNED_TX[Broadcast Signed Transaction]
 
     %% Dependencies to Core (all features depend on Core, but showing it explicitly would clutter the diagram)
     %% Instead, we note this in the documentation below
@@ -90,6 +93,8 @@ graph TB
     PAY --> RECIPIENTS
     PAY --> BULL_PAYJOIN
     PIN_CODE --> CORE
+    PSBT_FLOW --> BROADCAST_SIGNED_TX
+    SETTINGS --> PSBT_SIGNING
     RECEIVE --> BULL_PAYJOIN
     RECEIVE --> SETTINGS
     RECEIVE --> SWAPS
