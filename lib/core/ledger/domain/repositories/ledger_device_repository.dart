@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/entities/signer_device_entity.dart';
 import 'package:bb_mobile/core/ledger/domain/entities/ledger_device_entity.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/bitcoin_policy.dart';
 
 abstract class LedgerDeviceRepository {
   Future<List<LedgerDeviceEntity>> scanDevices({
@@ -29,6 +30,26 @@ abstract class LedgerDeviceRepository {
     required String address,
     required String derivationPath,
     required ScriptType scriptType,
+  });
+
+  Future<void> registerWalletPolicy(
+    LedgerDeviceEntity device, {
+    required Wallet wallet,
+  });
+
+  Future<String> signWalletPsbt(
+    LedgerDeviceEntity device, {
+    required Wallet wallet,
+    required String signerId,
+    required String psbt,
+  });
+
+  Future<bool> verifyWalletAddress(
+    LedgerDeviceEntity device, {
+    required Wallet wallet,
+    required String address,
+    required BitcoinPolicyKeychain keychain,
+    required int index,
   });
 
   Future<void> disconnectConnection(LedgerDeviceEntity device);

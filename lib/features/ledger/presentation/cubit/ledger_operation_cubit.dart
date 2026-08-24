@@ -67,12 +67,13 @@ class LedgerOperationCubit extends Cubit<LedgerOperationState> {
         emit(
           state.copyWith(status: LedgerOperationStatus.success, result: result),
         );
-      } catch (e) {
+      } on LedgerError {
+        rethrow;
+      } on Exception catch (e) {
         final interpretedMessage = _interpretErrorCode(e.toString());
-        if (interpretedMessage != null) {
-          throw LedgerError.operationFailed(message: interpretedMessage);
-        }
-        throw LedgerError.operationFailed(message: e.toString());
+        throw LedgerError.operationFailed(
+          message: interpretedMessage ?? 'LEDGER_ERROR_UNKNOWN',
+        );
       }
     } on LedgerError catch (e) {
       final message = e.message;
@@ -86,23 +87,13 @@ class LedgerOperationCubit extends Cubit<LedgerOperationState> {
       rethrow;
     } on Exception catch (e) {
       final interpretedMessage = _interpretErrorCode(e.toString());
-      if (interpretedMessage != null) {
-        log.severe(error: e, trace: StackTrace.current);
-        emit(
-          state.copyWith(
-            status: LedgerOperationStatus.error,
-            errorMessage: interpretedMessage,
-          ),
-        );
-      } else {
-        log.severe(error: e, trace: StackTrace.current);
-        emit(
-          state.copyWith(
-            status: LedgerOperationStatus.error,
-            errorMessage: e.toString(),
-          ),
-        );
-      }
+      log.severe(error: e, trace: StackTrace.current);
+      emit(
+        state.copyWith(
+          status: LedgerOperationStatus.error,
+          errorMessage: interpretedMessage ?? 'LEDGER_ERROR_UNKNOWN',
+        ),
+      );
       rethrow;
     }
   }
@@ -116,6 +107,9 @@ class LedgerOperationCubit extends Cubit<LedgerOperationState> {
 // Note: The returned strings are error keys that should be localized in the UI layer.
 // These keys correspond to entries in the localization ARB files (ledgerError*).
 String? _interpretErrorCode(String error) {
+  if (error.contains('SW_DENIED_BY_USER')) {
+    return 'LEDGER_ERROR_REJECTED_BY_USER';
+  }
   if (error.contains(
     "Make sure no other program is communicating with the Ledger",
   )) {
