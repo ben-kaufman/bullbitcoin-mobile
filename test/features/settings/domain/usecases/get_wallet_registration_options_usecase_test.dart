@@ -158,6 +158,72 @@ void main() {
     },
   );
 
+  test('limits Taproot registration to verified device formats', () async {
+    final wallet = _wallet(
+      devices: const [
+        SignerDeviceEntity.krux,
+        SignerDeviceEntity.specter,
+        SignerDeviceEntity.passport,
+        SignerDeviceEntity.jade,
+        SignerDeviceEntity.seedsigner,
+        SignerDeviceEntity.coldcardQ,
+        SignerDeviceEntity.coldcardMk4,
+        SignerDeviceEntity.bitbox02,
+        SignerDeviceEntity.ledgerNanoSPlus,
+      ],
+      taproot: true,
+    );
+    when(
+      () => bitcoinSigningPort.getPolicy(walletId: wallet.id),
+    ).thenAnswer((_) async => _multisigPolicy(keyCount: 8));
+
+    final result = await usecase.execute(wallet);
+
+    final options =
+        (result as Ok<List<WalletRegistrationOption>, SettingsFailure>).value;
+    expect(
+      options.whereType<AvailableWalletRegistration>().map(
+        (option) => option.device,
+      ),
+      [
+        SignerDeviceEntity.krux,
+        SignerDeviceEntity.specter,
+        SignerDeviceEntity.passport,
+        SignerDeviceEntity.coldcardQ,
+        SignerDeviceEntity.coldcardMk4,
+      ],
+    );
+    final coldcardOptions = options
+        .whereType<AvailableWalletRegistration>()
+        .where(
+          (option) =>
+              option.device == SignerDeviceEntity.coldcardQ ||
+              option.device == SignerDeviceEntity.coldcardMk4,
+        )
+        .toList();
+    expect(
+      coldcardOptions.first.qrEncoding,
+      WalletRegistrationQrEncoding.bbqrText,
+    );
+    expect(coldcardOptions.last.qrEncoding, WalletRegistrationQrEncoding.none);
+    expect(
+      coldcardOptions.map((option) => option.fileData),
+      everyElement(wallet.publicDescriptor),
+    );
+    expect(
+      options.whereType<UnavailableWalletRegistration>().map(
+        (option) => option.device,
+      ),
+      [SignerDeviceEntity.jade, SignerDeviceEntity.seedsigner],
+    );
+    expect(
+      options.whereType<ConnectedWalletRegistration>().map(
+        (option) => option.device,
+      ),
+      [SignerDeviceEntity.bitbox02, SignerDeviceEntity.ledgerNanoSPlus],
+    );
+  });
+
   test('does not offer BitBox for nested unsorted multisig', () async {
     final wallet = _wallet(
       devices: const [
@@ -293,6 +359,7 @@ Wallet _wallet({
   bool miniscript = false,
   bool nestedUnsortedMultisig = false,
   bool usesDisjointBranches = false,
+  bool taproot = false,
 }) {
   final signers = [
     for (final (index, device) in devices.indexed)
@@ -318,7 +385,9 @@ Wallet _wallet({
   final miniscriptPolicy = keys.reversed
       .skip(1)
       .fold('pk(${keys.last})', (policy, key) => 'or_d(pk($key),$policy)');
-  final body = miniscript
+  final body = taproot
+      ? 'tr(${keys.first},multi_a($threshold,${keys.skip(1).join(',')}))'
+      : miniscript
       ? 'wsh($miniscriptPolicy)'
       : nestedUnsortedMultisig
       ? 'sh(wsh(multi($threshold,${keys.join(',')})))'

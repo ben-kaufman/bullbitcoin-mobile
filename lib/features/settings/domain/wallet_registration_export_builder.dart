@@ -67,7 +67,8 @@ abstract final class WalletRegistrationExportBuilder {
         device: device,
         fileName: fileName,
         encoding: WalletRegistrationQrEncoding.urBytes,
-        supportsPolicy: regularMultisig != null || _isNativeSegwit(wallet),
+        supportsPolicy:
+            regularMultisig != null || _supportsDescriptorRegistration(wallet),
       ),
       SignerDeviceEntity.specter => _specterOption(
         wallet: wallet,
@@ -92,19 +93,21 @@ abstract final class WalletRegistrationExportBuilder {
       SignerDeviceEntity.keystone => _commonMultisigOption(
         wallet: wallet,
         device: device,
-        regularMultisig: regularMultisig,
+        regularMultisig: _isTaproot(wallet) ? null : regularMultisig,
         fileName: fileName,
         allowLegacy: true,
         nameMaxLength: device == SignerDeviceEntity.jade ? 15 : 16,
       ),
       SignerDeviceEntity.passport =>
-        regularMultisig == null
+        regularMultisig == null || _isTaproot(wallet)
             ? _descriptorOption(
                 wallet: wallet,
                 device: device,
                 fileName: fileName,
                 encoding: WalletRegistrationQrEncoding.urBytes,
-                supportsPolicy: _isNativeSegwit(wallet) && !policy.hasHashlock,
+                supportsPolicy:
+                    _supportsDescriptorRegistration(wallet) &&
+                    !policy.hasHashlock,
               )
             : _commonMultisigOption(
                 wallet: wallet,
@@ -117,7 +120,7 @@ abstract final class WalletRegistrationExportBuilder {
       SignerDeviceEntity.seedsigner => _commonMultisigOption(
         wallet: wallet,
         device: device,
-        regularMultisig: regularMultisig,
+        regularMultisig: _isTaproot(wallet) ? null : regularMultisig,
         fileName: fileName,
         allowLegacy: false,
         nameMaxLength: 16,
@@ -156,6 +159,15 @@ abstract final class WalletRegistrationExportBuilder {
     required String fileName,
     required WalletRegistrationQrEncoding qrEncoding,
   }) {
+    if (_isTaproot(wallet)) {
+      return _descriptorOption(
+        wallet: wallet,
+        device: device,
+        fileName: fileName,
+        encoding: qrEncoding,
+        supportsPolicy: true,
+      );
+    }
     if (regularMultisig == null) return _unsupportedPolicy(device);
     if (!wallet.hasWalletPolicyKeyOrigins) {
       return UnavailableWalletRegistration(
@@ -247,10 +259,7 @@ abstract final class WalletRegistrationExportBuilder {
           root.children.any((child) => child is! BitcoinSignaturePolicyNode)) {
         return null;
       }
-      return _RegularMultisig(
-        threshold: root.threshold,
-        keyCount: root.children.length,
-      );
+      return (threshold: root.threshold, keyCount: root.children.length);
     }
 
     final external = inspect(policy.external);
@@ -296,8 +305,13 @@ abstract final class WalletRegistrationExportBuilder {
     return null;
   }
 
-  static bool _isNativeSegwit(Wallet wallet) =>
-      wallet.publicDescriptor.toLowerCase().startsWith('wsh(');
+  static bool _supportsDescriptorRegistration(Wallet wallet) {
+    final descriptor = wallet.publicDescriptor.toLowerCase();
+    return descriptor.startsWith('wsh(') || descriptor.startsWith('tr(');
+  }
+
+  static bool _isTaproot(Wallet wallet) =>
+      wallet.publicDescriptor.toLowerCase().startsWith('tr(');
 
   static UnavailableWalletRegistration _unsupportedPolicy(
     SignerDeviceEntity device,
@@ -348,21 +362,7 @@ abstract final class WalletRegistrationExportBuilder {
   );
 }
 
-final class _RegularMultisig {
-  final int threshold;
-  final int keyCount;
-
-  const _RegularMultisig({required this.threshold, required this.keyCount});
-
-  @override
-  bool operator ==(Object other) =>
-      other is _RegularMultisig &&
-      threshold == other.threshold &&
-      keyCount == other.keyCount;
-
-  @override
-  int get hashCode => Object.hash(threshold, keyCount);
-}
+typedef _RegularMultisig = ({int threshold, int keyCount});
 
 final class _CommonMultisigKey {
   static final pattern = RegExp(

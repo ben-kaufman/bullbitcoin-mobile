@@ -227,6 +227,9 @@ abstract class Wallet with _$Wallet {
     if (!isBitcoin || descriptorKeys.isEmpty) return false;
     final descriptor = publicDescriptor.split('#').first.toLowerCase();
     if (descriptor.startsWith('wsh(')) return true;
+    if (descriptor.startsWith('tr(')) {
+      return _hasExtendedTaprootInternalKey(descriptor);
+    }
     return descriptor.startsWith('sh(wsh(sortedmulti(') ||
         descriptor.startsWith('sh(wsh(multi(');
   }
@@ -234,6 +237,10 @@ abstract class Wallet with _$Wallet {
   bool get supportsBitBoxWalletPolicy {
     if (!isBitcoin || descriptorKeys.isEmpty) return false;
     final descriptor = publicDescriptor.split('#').first.toLowerCase();
+    if (_containsMiniscriptHashlock(descriptor)) return false;
+    if (descriptor.startsWith('tr(')) {
+      return _hasExtendedTaprootInternalKey(descriptor);
+    }
     return descriptor.startsWith('wsh(') ||
         descriptor.startsWith('sh(wsh(sortedmulti(');
   }
@@ -243,12 +250,7 @@ abstract class Wallet with _$Wallet {
     if (device == null || !hasWalletPolicyKeyOriginsFor(signer)) return false;
     if (device.isLedger) return supportsLedgerWalletPolicy;
     if (!device.isBitBox || !supportsBitBoxWalletPolicy) return false;
-
-    final descriptor = publicDescriptor.split('#').first.toLowerCase();
-    final isSortedMultisig =
-        descriptor.startsWith('wsh(sortedmulti(') ||
-        descriptor.startsWith('sh(wsh(sortedmulti(');
-    return !isSortedMultisig || signer.descriptorKeys.length == 1;
+    return signer.descriptorKeys.length == 1;
   }
 
   bool supportsWalletPolicyOn(SignerDeviceEntity device) => signers.any(
@@ -259,6 +261,24 @@ abstract class Wallet with _$Wallet {
         supportsWalletPolicySigner(signer),
   );
 
+  bool supportsQrSigningFor(WalletSigner signer) {
+    final device = signer.signerDevice;
+    if (device == null || device.supportedQrType == QrType.none) return false;
+    final descriptor = publicDescriptor.split('#').first.toLowerCase();
+    if (!descriptor.startsWith('tr(')) return true;
+    return switch (device) {
+      SignerDeviceEntity.krux ||
+      SignerDeviceEntity.passport ||
+      SignerDeviceEntity.specter ||
+      SignerDeviceEntity.coldcardQ => true,
+      _ => false,
+    };
+  }
+
+  bool supportsDevicePsbtFlowFor(WalletSigner signer) =>
+      signer.signerDevice == SignerDeviceEntity.coldcardMk4 ||
+      supportsQrSigningFor(signer);
+
   static bool _haveWalletPolicyKeyOrigins(Iterable<WalletDescriptorKey> keys) =>
       keys.isNotEmpty &&
       keys.every(
@@ -267,6 +287,21 @@ abstract class Wallet with _$Wallet {
             key.xpub.isNotEmpty &&
             key.derivationPath != null,
       );
+
+  static bool _hasExtendedTaprootInternalKey(String descriptor) {
+    final separator = descriptor.indexOf(',');
+    final close = descriptor.indexOf(')');
+    final end = separator < 0 ? close : separator;
+    if (end <= 3) return false;
+    final internalKey = descriptor.substring(3, end);
+    return internalKey.contains('xpub') || internalKey.contains('tpub');
+  }
+
+  static bool _containsMiniscriptHashlock(String descriptor) =>
+      descriptor.contains('sha256(') ||
+      descriptor.contains('hash256(') ||
+      descriptor.contains('ripemd160(') ||
+      descriptor.contains('hash160(');
 
   String get derivationPath {
     // Find the content between [ and ]
