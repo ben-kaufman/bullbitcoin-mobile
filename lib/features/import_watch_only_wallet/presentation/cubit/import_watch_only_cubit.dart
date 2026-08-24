@@ -1,5 +1,4 @@
 import 'package:bb_mobile/core/entities/signer_device_entity.dart';
-import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/settings/data/settings_repository.dart';
@@ -25,12 +24,6 @@ class ImportWatchOnlyCubit extends Cubit<ImportWatchOnlyState> {
     required this._parseWatchOnlyInputUsecase,
     required this._settingsRepository,
   }) : super(ImportWatchOnlyState(watchOnlyWallet: watchOnlyWallet));
-
-  void init() {
-    if (state.watchOnlyWallet != null) {
-      emit(state.copyWith(watchOnlyWallet: state.watchOnlyWallet));
-    }
-  }
 
   void updateLabel(String label) {
     if (state.watchOnlyWallet == null) return;
@@ -75,11 +68,17 @@ class ImportWatchOnlyCubit extends Cubit<ImportWatchOnlyState> {
     }
   }
 
-  Future<void> parsePastedInput(String input) async {
+  Future<void> parsePastedInput(
+    String input, {
+    SignerDeviceEntity? signerDevice,
+  }) async {
     final trimmed = input.trim();
     emit(state.copyWith(input: trimmed));
     if (trimmed.length >= 111) {
-      switch (await _parseWatchOnlyInputUsecase.execute(trimmed)) {
+      switch (await _parseWatchOnlyInputUsecase.execute(
+        trimmed,
+        signerDevice: signerDevice,
+      )) {
         case Ok(:final value):
           emit(state.copyWith(watchOnlyWallet: value));
         case Err(:final failure):
@@ -88,21 +87,14 @@ class ImportWatchOnlyCubit extends Cubit<ImportWatchOnlyState> {
     }
   }
 
-  void onSignerChanged(SignerEntity? value) {
-    if (value == null) return;
-    final watchOnlyWallet = state.watchOnlyWallet!.copyWith(signer: value);
-    emit(state.copyWith(watchOnlyWallet: watchOnlyWallet));
-  }
-
-  void onSignerDeviceChanged(SignerDeviceEntity? device) {
+  void onSignerDeviceChanged(String signerId, SignerDeviceEntity? device) {
     if (state.watchOnlyWallet == null) return;
     if (state.watchOnlyWallet is! WatchOnlyDescriptorEntity) return;
 
     final entity = state.watchOnlyWallet! as WatchOnlyDescriptorEntity;
-
-    final watchOnlyWallet = entity.copyWith(
+    final watchOnlyWallet = entity.withSignerDevice(
+      signerId: signerId,
       signerDevice: device,
-      signer: device == null ? SignerEntity.none : SignerEntity.remote,
     );
     emit(state.copyWith(watchOnlyWallet: watchOnlyWallet));
   }
@@ -113,18 +105,11 @@ class ImportWatchOnlyCubit extends Cubit<ImportWatchOnlyState> {
     if (value == null) return;
 
     final entity = state.watchOnlyWallet! as WatchOnlyXpubEntity;
-    final newPubkey = switch (value) {
-      satoshifier.Derivation.bip84 => satoshifier.Bip32Utils.convertToZpub(
-        entity.extendedPubkey.pubkey,
-      ),
-      satoshifier.Derivation.bip49 => satoshifier.Bip32Utils.convertToYpub(
-        entity.extendedPubkey.pubkey,
-      ),
-      satoshifier.Derivation.bip44 => satoshifier.Bip32Utils.convertToXpub(
-        entity.extendedPubkey.pubkey,
-      ),
+    final scriptType = switch (value) {
+      satoshifier.Derivation.bip84 => ScriptType.bip84,
+      satoshifier.Derivation.bip49 => ScriptType.bip49,
+      satoshifier.Derivation.bip44 => ScriptType.bip44,
     };
-
-    parsePastedInput(newPubkey);
+    emit(state.copyWith(watchOnlyWallet: entity.withScriptType(scriptType)));
   }
 }

@@ -14680,5 +14680,46 @@
   "settingsScreenPrivacyDisabledMessage": "Screenshots are now allowed on sensitive screens",
   "@settingsScreenPrivacyDisabledMessage": {
     "description": "Snackbar shown when the user turns off Screen Privacy, warning that screenshots/recording are now allowed on sensitive screens such as the recovery phrase"
+  },
+  "importWatchOnlyBullMobileDevice": "Bull Wallet (this device)",
+  "@importWatchOnlyBullMobileDevice": {
+    "description": "Device name shown when a descriptor key belongs to the local Bull wallet"
+  },
+  "importWatchOnlyChangePathDescription": "This descriptor specifies receive addresses on /0/*. Bull will use /1/* for change.",
+  "@importWatchOnlyChangePathDescription": {
+    "description": "Explains the change branch inferred from a conventional external descriptor"
+  },
+  "importWatchOnlyChangePathTitle": "Change path",
+  "@importWatchOnlyChangePathTitle": {
+    "description": "Title shown when Bull infers the change branch from a receive-only descriptor"
+  },
+  "walletSignerLabelWithFingerprint": "Signer {index} · {fingerprint}",
+  "@walletSignerLabelWithFingerprint": {
+    "description": "Label identifying a wallet signer by position and fingerprint",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "fingerprint": {
+        "type": "String"
+      }
+    }
+  },
+  "walletSignerLabel": "Signer {index}",
+  "@walletSignerLabel": {
+    "description": "Label identifying a wallet signer by position",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "importWatchOnlyErrorFixedPublicKeyUnsupported": "This descriptor contains fixed public keys, which Bull does not support yet. Use extended public keys for every signer.",
+  "@importWatchOnlyErrorFixedPublicKeyUnsupported": {
+    "description": "Error shown when a descriptor contains a fixed public key instead of an extended public key"
+  },
+  "importWatchOnlyErrorTaprootUnsupported": "Taproot descriptors aren’t supported yet.",
+  "@importWatchOnlyErrorTaprootUnsupported": {
+    "description": "Error shown when a user tries to import a Taproot descriptor"
   }
 }

@@ -13,13 +13,19 @@ void main() {
       ).readAsStringSync();
       final importDescriptor = source.substring(
         source.indexOf('importDescriptor'),
+        source.indexOf('void _requireBitcoinNetwork'),
       );
-      final importXpub = source.substring(
-        source.indexOf('importWatchOnlyXpub'),
+      expect(
+        importDescriptor,
+        contains('_walletMetadataDatasource.fetchAll()'),
       );
-      expect(importDescriptor, contains('getWallets()'));
-      expect(importXpub, contains('getWallets()'));
       expect(source, contains('WalletAlreadyExistsException'));
+      expect(
+        File(
+          'lib/features/import_watch_only_wallet/import_watch_only_xpub_usecase.dart',
+        ).readAsStringSync(),
+        contains('_descriptorPort.importDescriptor'),
+      );
       expect(
         File(
           'lib/core/wallet/data/datasources/wallet_metadata_datasource.dart',

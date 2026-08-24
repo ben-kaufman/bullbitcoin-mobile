@@ -36,7 +36,7 @@ class LiquidWalletRepository {
     }
 
     final wallet = WalletModel.publicLwk(
-      combinedCtDescriptor: metadata.externalPublicDescriptor,
+      combinedCtDescriptor: metadata.publicDescriptor,
       isTestnet: metadata.isTestnet,
       id: metadata.id,
     );
@@ -65,7 +65,7 @@ class LiquidWalletRepository {
       throw Exception('Wallet $walletId is not a Liquid wallet');
     }
     final wallet = WalletModel.publicLwk(
-      combinedCtDescriptor: metadata.externalPublicDescriptor,
+      combinedCtDescriptor: metadata.publicDescriptor,
       isTestnet: metadata.isTestnet,
       id: metadata.id,
     );
@@ -86,7 +86,7 @@ class LiquidWalletRepository {
       throw Exception('Wallet $walletId is not a Liquid wallet');
     }
     final wallet = WalletModel.publicLwk(
-      combinedCtDescriptor: metadata.externalPublicDescriptor,
+      combinedCtDescriptor: metadata.publicDescriptor,
       isTestnet: metadata.isTestnet,
       id: metadata.id,
     );
@@ -113,7 +113,8 @@ class LiquidWalletRepository {
     }
 
     final seed =
-        await _seed.get(metadata.masterFingerprint) as MnemonicSeedModel;
+        await _seed.get(metadata.soleDescriptorKey.masterFingerprint)
+            as MnemonicSeedModel;
     final mnemonic = seed.mnemonicWords.join(' ');
 
     final wallet =
@@ -141,7 +142,7 @@ class LiquidWalletRepository {
       throw Exception('Wallet $walletId is not a Liquid wallet');
     }
     final wallet = WalletModel.publicLwk(
-      combinedCtDescriptor: metadata.externalPublicDescriptor,
+      combinedCtDescriptor: metadata.publicDescriptor,
       isTestnet: metadata.isTestnet,
       id: metadata.id,
     );

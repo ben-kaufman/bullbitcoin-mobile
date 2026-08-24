@@ -2,9 +2,12 @@ import 'package:bb_mobile/core/entities/signer_entity.dart';
 import 'package:bb_mobile/core/ledger/domain/entities/ledger_device_entity.dart';
 import 'package:bb_mobile/core/ledger/domain/repositories/ledger_device_repository.dart';
 import 'package:bb_mobile/core/settings/data/settings_repository.dart';
+import 'package:bb_mobile/core/utils/bip32_derivation.dart';
+import 'package:bb_mobile/core/utils/descriptor_derivation.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet_descriptor_key.dart';
+import 'package:bb_mobile/core/wallet/domain/entities/wallet_signer.dart';
 import 'package:bb_mobile/features/import_watch_only_wallet/watch_only_wallet_entity.dart';
-import 'package:satoshifier/satoshifier.dart' hide Network;
 
 class GetLedgerWatchOnlyWalletUsecase {
   final LedgerDeviceRepository _repository;
@@ -37,27 +40,39 @@ class GetLedgerWatchOnlyWalletUsecase {
       scriptType: scriptType,
     );
 
-    final descriptor = Descriptor.fromStrings(
-      fingerprint: masterFingerprint,
-      path: derivationPath,
-      xpub: xpub,
-    );
+    final descriptor =
+        DescriptorDerivation.derivePublicBitcoinMultipathDescriptorFromXpub(
+          xpub,
+          scriptType: scriptType,
+          isTestnet: network.isTestnet,
+          masterFingerprint: masterFingerprint,
+          derivationPath: derivationPath,
+        );
 
-    final watchOnly = Satoshifier.watchOnlyDescriptor(descriptor: descriptor);
-
-    if (watchOnly is! WatchOnlyDescriptor) {
-      throw Exception(
-        'Failed to parse descriptor: got ${watchOnly.runtimeType}',
-      );
-    }
-
-    final watchOnlyWallet = WatchOnlyWalletEntity.descriptor(
-      watchOnlyDescriptor: watchOnly,
-      signer: SignerEntity.remote,
+    return WatchOnlyWalletEntity.descriptor(
+      descriptor: descriptor,
+      network: network,
+      scriptType: scriptType,
+      signers: [
+        WalletSigner(
+          id: 'signer-0',
+          signer: SignerEntity.remote,
+          signerDevice: device.deviceType,
+          descriptorKeys: [
+            WalletDescriptorKey(
+              id: 'key-0',
+              signerId: 'signer-0',
+              masterFingerprint: masterFingerprint,
+              xpubFingerprint: Bip32Derivation.getBip32Xpub(
+                xpub,
+              ).fingerprintHex,
+              xpub: xpub,
+              derivationPath: derivationPath,
+            ),
+          ],
+        ),
+      ],
       label: label,
-      signerDevice: device.deviceType,
     );
-
-    return watchOnlyWallet;
   }
 }

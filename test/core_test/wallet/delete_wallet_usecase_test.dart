@@ -31,7 +31,11 @@ void main() {
   }) {
     final wallet = _MockWallet();
     when(() => wallet.isDefault).thenReturn(isDefault);
-    when(() => wallet.masterFingerprint).thenReturn(masterFingerprint);
+    final fingerprints = masterFingerprint.isEmpty
+        ? const <String>[]
+        : [masterFingerprint];
+    when(() => wallet.masterFingerprints).thenReturn(fingerprints);
+    when(() => wallet.localMasterFingerprints).thenReturn(fingerprints);
     return wallet;
   }
 

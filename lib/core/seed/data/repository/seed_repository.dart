@@ -1,13 +1,14 @@
 import 'package:bb_mobile/core/seed/data/datasources/seed_datasource.dart';
 import 'package:bb_mobile/core/seed/data/models/seed_model.dart';
 import 'package:bb_mobile/core/seed/domain/entity/seed.dart';
+import 'package:bb_mobile/core/seed/domain/seed_lookup_port.dart';
 import 'package:bb_mobile/core/seed/domain/seed_failure.dart';
 import 'package:bb_mobile/core/utils/logger.dart';
 import 'package:bb_mobile/core/utils/result.dart';
 import 'package:flutter/foundation.dart';
 import 'package:meta/meta.dart';
 
-class SeedRepository {
+class SeedRepository implements SeedLookupPort {
   final SeedDatasource _source;
 
   const SeedRepository({required this._source});
@@ -48,6 +49,7 @@ class SeedRepository {
     }
   }
 
+  @override
   Future<Seed> get(String fingerprint) async {
     try {
       final model = await _source.get(fingerprint);
@@ -77,6 +79,7 @@ class SeedRepository {
     ).masterFingerprint;
   }
 
+  @override
   Future<bool> exists(String fingerprint) async {
     try {
       return await _source.exists(fingerprint);

@@ -81,7 +81,7 @@ class WalletDetailsScreen extends StatelessWidget {
                   const SizedBox(height: 18),
                   _CopyField(
                     label: context.loc.walletDetailsDescriptorLabel,
-                    value: wallet.externalPublicDescriptor,
+                    value: wallet.publicDescriptor,
                     copyLabel: context.loc.walletDetailsCopyButton,
                   ),
                   const SizedBox(height: 18),

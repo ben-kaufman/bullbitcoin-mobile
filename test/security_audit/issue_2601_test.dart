@@ -17,14 +17,14 @@ void main() {
           source.indexOf('Future<void> onConfirmTransactionClicked()'),
           source.indexOf('Future<void> currencyCodeChanged'),
         );
-        expect(
-          retry,
-          contains(
-            'state.signedBitcoinTx == null && state.signedBitcoinPsbt == null',
-          ),
-        );
+        expect(retry, contains('!state.hasFinalizedBitcoinTransaction'));
         expect(retry, contains('await createTransaction()'));
-        expect(retry, contains('state.signedBitcoinPsbt == null'));
+        expect(
+          File(
+            'lib/features/send/presentation/bloc/send_state.dart',
+          ).readAsStringSync(),
+          contains('signedBitcoinPsbt != null || signedBitcoinTx != null'),
+        );
         expect(source, contains("'BroadcastTransactionException'"));
         expect(source, contains('isBroadcastFailure: true'));
         expect(source, contains('step: SendStep.confirm'));

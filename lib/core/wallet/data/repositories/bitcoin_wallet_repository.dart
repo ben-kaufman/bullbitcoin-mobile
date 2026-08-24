@@ -52,8 +52,7 @@ class BitcoinWalletRepository implements BitcoinSendPort {
 
     final wallet =
         WalletModel.publicBdk(
-              externalDescriptor: metadata.externalPublicDescriptor,
-              internalDescriptor: metadata.internalPublicDescriptor,
+              descriptor: metadata.publicDescriptor,
               isTestnet: metadata.isTestnet,
               id: metadata.id,
             )
@@ -139,8 +138,7 @@ class BitcoinWalletRepository implements BitcoinSendPort {
 
     final wallet =
         WalletModel.publicBdk(
-              externalDescriptor: metadata.externalPublicDescriptor,
-              internalDescriptor: metadata.internalPublicDescriptor,
+              descriptor: metadata.publicDescriptor,
               isTestnet: metadata.isTestnet,
               id: metadata.id,
             )
@@ -168,8 +166,7 @@ class BitcoinWalletRepository implements BitcoinSendPort {
 
     final wallet =
         WalletModel.publicBdk(
-              externalDescriptor: metadata.externalPublicDescriptor,
-              internalDescriptor: metadata.internalPublicDescriptor,
+              descriptor: metadata.publicDescriptor,
               isTestnet: metadata.isTestnet,
               id: metadata.id,
             )
@@ -226,8 +223,13 @@ class BitcoinWalletRepository implements BitcoinSendPort {
       throw Exception('Wallet $walletId is not a Bitcoin wallet');
     }
 
+    final scriptType = metadata.scriptType;
+    if (metadata.signers.length != 1 || scriptType == null) {
+      throw StateError('Standard local single-signature wallet required');
+    }
     final seed =
-        await _seed.get(metadata.masterFingerprint) as MnemonicSeedModel;
+        await _seed.get(metadata.soleDescriptorKey.masterFingerprint)
+            as MnemonicSeedModel;
     final mnemonic = seed.mnemonicWords.join(' ');
 
     final wallet =
@@ -235,7 +237,7 @@ class BitcoinWalletRepository implements BitcoinSendPort {
               id: metadata.id,
               mnemonic: mnemonic,
               passphrase: seed.passphrase,
-              scriptType: metadata.scriptType,
+              scriptType: scriptType,
               isTestnet: metadata.isTestnet,
             )
             as PrivateBdkWalletModel;

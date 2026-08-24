@@ -48,7 +48,7 @@ void main() {
       'returns SeedDeleteFailure when a wallet still uses the seed — guard',
       () async {
         final wallet = _MockWallet();
-        when(() => wallet.masterFingerprint).thenReturn(fingerprint);
+        when(() => wallet.masterFingerprints).thenReturn([fingerprint]);
         when(
           () => walletRepository.getWallets(),
         ).thenAnswer((_) async => [wallet]);

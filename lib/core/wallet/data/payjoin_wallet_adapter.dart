@@ -94,13 +94,17 @@ final class PayjoinWalletAdapter implements PayjoinWalletPort {
     BitcoinNetwork network,
   ) async {
     final metadata = await _loadMetadata(walletId, network);
-    final seed = await _seed.get(metadata.masterFingerprint);
+    final scriptType = metadata.scriptType;
+    if (metadata.signers.length != 1 || scriptType == null) {
+      throw StateError('Payjoin requires a standard local wallet');
+    }
+    final seed = await _seed.get(metadata.soleDescriptorKey.masterFingerprint);
     if (seed is! MnemonicSeedModel) {
       throw StateError('Payjoin requires a local mnemonic wallet');
     }
     return WalletModel.privateBdk(
           id: walletId,
-          scriptType: metadata.scriptType,
+          scriptType: scriptType,
           mnemonic: seed.mnemonicWords.join(' '),
           passphrase: seed.passphrase,
           isTestnet: metadata.isTestnet,
