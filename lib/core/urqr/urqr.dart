@@ -14,16 +14,7 @@ class UrQrGenerator {
     try {
       final psbtBytes = base64.decode(psbt);
       final cryptoPsbt = CryptoPsbt.fromPayload(psbtBytes);
-      final ur = cryptoPsbt.toUR();
-      final encoder = UREncoder(ur, fragmentLength);
-
-      final parts = <String>[];
-      while (!encoder.isComplete) {
-        final part = encoder.nextPart();
-        parts.add(part);
-      }
-
-      return parts;
+      return _encode(cryptoPsbt.toUR(), fragmentLength);
     } catch (e) {
       log.severe(
         message: 'Failed to generate PSBT UR',
@@ -32,6 +23,32 @@ class UrQrGenerator {
       );
       return [];
     }
+  }
+
+  static List<String> generateBytesUr(
+    String value, {
+    int fragmentLength = 100,
+  }) {
+    try {
+      final payload = cbor.encode(CborBytes(utf8.encode(value)));
+      return _encode(UR('bytes', Uint8List.fromList(payload)), fragmentLength);
+    } catch (e) {
+      log.severe(
+        message: 'Failed to generate bytes UR',
+        error: e,
+        trace: StackTrace.current,
+      );
+      return [];
+    }
+  }
+
+  static List<String> _encode(UR ur, int fragmentLength) {
+    final encoder = UREncoder(ur, fragmentLength);
+    final parts = <String>[];
+    while (!encoder.isComplete) {
+      parts.add(encoder.nextPart());
+    }
+    return parts;
   }
 }
 

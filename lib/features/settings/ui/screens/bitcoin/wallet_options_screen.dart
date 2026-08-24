@@ -1,6 +1,7 @@
 import 'package:bb_mobile/core/utils/build_context_x.dart';
 import 'package:bb_mobile/core/wallet/domain/entities/wallet.dart';
 import 'package:bb_mobile/core/widgets/settings_entry_item.dart';
+import 'package:bb_mobile/features/settings/domain/wallet_registration.dart';
 import 'package:bb_mobile/features/settings/ui/settings_router.dart';
 import 'package:bb_mobile/features/psbt_signing/public/psbt_signing_facade.dart';
 import 'package:bb_mobile/features/wallet/presentation/bloc/wallet_bloc.dart';
@@ -46,6 +47,24 @@ class WalletOptionsScreen extends StatelessWidget {
                             );
                           },
                         ),
+                        if (wallet.isBitcoin &&
+                            wallet.signers.any(
+                              (signer) =>
+                                  signer
+                                      .signerDevice
+                                      ?.supportsWalletRegistration ??
+                                  false,
+                            ))
+                          SettingsEntryItem(
+                            icon: Icons.devices_other,
+                            title: context.loc.walletRegistrationTitle,
+                            onTap: () {
+                              context.pushNamed(
+                                SettingsRoute.walletRegistration.name,
+                                pathParameters: {'walletId': walletId},
+                              );
+                            },
+                          ),
                         SettingsEntryItem(
                           icon: Icons.currency_bitcoin,
                           title: context.loc.addressViewAddressesTitle,
