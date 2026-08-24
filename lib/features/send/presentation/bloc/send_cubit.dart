@@ -3261,10 +3261,11 @@ class SendCubit extends Cubit<SendState>
         return false;
       }
       return true;
-    } on Exception catch (e) {
+    } on Exception catch (e, stackTrace) {
       log.severe(
-        error: 'An external signer returned an invalid transaction',
-        trace: StackTrace.current,
+        message: 'An external signer returned an invalid transaction',
+        error: e,
+        trace: stackTrace,
       );
       emit(
         state.copyWith(
