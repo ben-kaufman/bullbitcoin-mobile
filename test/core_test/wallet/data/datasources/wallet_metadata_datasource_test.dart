@@ -135,6 +135,25 @@ void main() {
     );
   });
 
+  test('updates only the selected signer device annotation', () async {
+    final metadata = _multisigMetadata();
+    await datasource.store(metadata);
+
+    final didUpdate = await datasource.updateSignerDevice(
+      walletId: metadata.id,
+      signerId: _hardware.id,
+      signer: Signer.remote,
+      signerDevice: SignerDevice.ledgerFlex,
+    );
+
+    final stored = await datasource.fetch(metadata.id);
+    expect(didUpdate, isTrue);
+    expect(stored!.signers[1].signerDevice, SignerDevice.ledgerFlex);
+    expect(stored.signers[0], _mobile);
+    expect(stored.signers[2], _server);
+    expect(stored.publicDescriptor, metadata.publicDescriptor);
+  });
+
   test('deletes signers and descriptor keys with wallet metadata', () async {
     final metadata = _multisigMetadata();
     await datasource.store(metadata);
